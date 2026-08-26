@@ -1,4 +1,4 @@
-import { _decorator, Component, Node, Vec3, Vec2, input, Input, EventTouch, EventMouse, Camera, Canvas, UITransform, RigidBody, Collider, ICollisionEvent, geometry, PhysicsSystem, Layers, Label, Color, Widget, Prefab, instantiate, director, Button } from 'cc';
+import { _decorator, Component, Node, Vec3, Vec2, input, Input, EventTouch, EventMouse, Camera, Canvas, UITransform, RigidBody, Collider, ICollisionEvent, geometry, PhysicsSystem, Layers, Label, Color, Widget, Prefab, instantiate, director, Button, tween, Tween } from 'cc';
 import { GunController } from './GunController';
 const { ccclass, property } = _decorator;
 
@@ -33,9 +33,55 @@ export class GameLogic extends Component {
     @property(Label)
     public guideLabel: Label = null;
 
+    /** Instruction shown while teaching the player to rotate the view. */
+    @property(Label)
+    public rotateGuideLabel: Label = null;
+
     /** Animated hand prompt shown while the player is idle and ready to shoot. */
     @property(Node)
     public handTuto: Node = null;
+
+    /** World-space object over which the hand tutorial is displayed. */
+    @property(Node)
+    public handTutoTarget: Node = null;
+
+    /** Idle quad displayed while the hand waits for input. */
+    @property(Node)
+    public handTutoIdle: Node = null;
+
+    /** Click quad displayed briefly when the player presses. */
+    @property(Node)
+    public handTutoClick: Node = null;
+
+    /** Offset applied above the tutorial target in world space. */
+    @property
+    public handTutoOffset: Vec3 = new Vec3(0, 1, 0);
+
+    @property
+    public handTutoClickDuration = 0.15;
+
+    @property
+    public handTutoIdleDuration = 0.6;
+
+    /** Seconds without input in READY state before showing an object-specific hint. */
+    @property
+    public idleHintDelay = 7;
+
+    /** Left and right world-space anchors for the rotate-hand tutorial. */
+    @property(Node)
+    public rotateHandStart: Node = null;
+
+    @property(Node)
+    public rotateHandEnd: Node = null;
+
+    @property
+    public rotateHandTravelDuration = 0.8;
+
+    @property
+    public rotateHandIdleDuration = 0.25;
+
+    @property
+    public rotateHandReleaseDuration = 0.25;
 
     /** Implementation note. */
     @property(Node)
@@ -145,6 +191,18 @@ export class GameLogic extends Component {
     private _resultLabel: Label = null;           // Implementation note.
     private _gunCtl: GunController = null;            // Implementation note.
     private _currentShell: Node = null;               // Implementation note.
+    private _hasShownFirstInteractionGuide = false;
+    private _idleHintTimer = 0;
+    private _idleHintTarget: Node | null = null;
+    private readonly _guideLabelBaseScale = new Vec3(1, 1, 1);
+    private readonly _rotateGuideLabelBaseScale = new Vec3(1, 1, 1);
+    private _handTutoMode: 'target' | 'rotate' | 'done' = 'target';
+    private _rotateHandPhase: 'idle-left' | 'dragging-right' | 'released-right' = 'idle-left';
+    private _rotateHandPhaseTimer = 0;
+    private _rotateHandProgress = 0;
+    private readonly _tempRotateHandPosition = new Vec3();
+    private readonly _rotateHandStartPosition = new Vec3();
+    private readonly _rotateHandEndPosition = new Vec3();
 
     onLoad() {
         if (!this.mainCamera) {
@@ -175,7 +233,14 @@ export class GameLogic extends Component {
             this.buttonRetry.active = false;
             this.buttonRetry.on(Node.EventType.TOUCH_END, this.onRetryClicked, this);
         }
-        this.setIdleClickGuideVisible(false);
+        if (this.guideLabel) this._guideLabelBaseScale.set(this.guideLabel.node.scale);
+        if (this.rotateGuideLabel) {
+            this._rotateGuideLabelBaseScale.set(this.rotateGuideLabel.node.scale);
+            this.rotateGuideLabel.node.active = false;
+        }
+        this.setIdleClickGuideVisible(true);
+        this.startHandTutoAnimation();
+        this.startGuidePulse();
     }
 
     start() {
@@ -249,6 +314,7 @@ export class GameLogic extends Component {
 
     private onTouchStart(e: EventTouch) {
         if (!this.canInteract()) return;
+        this.destroyGuideOnFirstInteraction();
         const touch = e.touch;
         this._touchId = touch.getID();
         const p = touch.getLocation();
@@ -275,6 +341,7 @@ export class GameLogic extends Component {
 
     private onMouseDown(e: EventMouse) {
         if (!this.canInteract()) return;
+        this.destroyGuideOnFirstInteraction();
         const p = e.getLocation();
         this._lastX = p.x;
         this._startX = p.x;
@@ -477,10 +544,14 @@ export class GameLogic extends Component {
     }
 
     /** Implementation note. */
-    private onShellCollision(_e: ICollisionEvent) {
+    private onShellCollision(e: ICollisionEvent) {
         const rigid = this._currentShell ? this._currentShell.getComponent(RigidBody) : null;
         if (rigid && !rigid.useGravity) {
             rigid.useGravity = true;
+        }
+        const hitNode = e.otherCollider ? e.otherCollider.node : null;
+        if (hitNode && (hitNode.layer & this._worldLayer) !== 0) {
+            this.beginRotateHandTutorial();
         }
     }
 
@@ -651,6 +722,10 @@ export class GameLogic extends Component {
         if (this._state === s) return;
         this._state = s;
         this._restTimer = 0;
+        if (s === GameState.READY) {
+            this._idleHintTimer = 0;
+            this._idleHintTarget = null;
+        }
         console.log(`[GameLogic] State: ${s}`);
         this.setIdleClickGuideVisible(s === GameState.READY);
         // Implementation note.
@@ -661,8 +736,231 @@ export class GameLogic extends Component {
 
     /** Show the tap instruction and hand only while the game awaits a shot. */
     private setIdleClickGuideVisible(visible: boolean) {
-        if (this.guideLabel) this.guideLabel.node.active = visible;
-        if (this.handTuto) this.handTuto.active = visible;
+        if (!this.handTuto || visible || this._handTutoMode === 'rotate') return;
+        this.handTuto.active = false;
+        this.stopHandTutoAnimation();
+    }
+
+    /** Keep the tutorial anchored to its configured target. */
+    private updateHandTutoPosition() {
+        if (!this.handTuto) return;
+        const target = this._idleHintTarget || this.handTutoTarget;
+        if (!target || !target.isValid) return;
+        const targetPosition = target.worldPosition;
+        this.handTuto.setWorldPosition(
+            targetPosition.x + this.handTutoOffset.x,
+            targetPosition.y + this.handTutoOffset.y,
+            targetPosition.z + this.handTutoOffset.z,
+        );
+    }
+
+    /** Start the repeating idle/click animation shown before the first tap. */
+    private startHandTutoAnimation() {
+        if (!this.handTuto || this._handTutoMode !== 'target') return;
+        this.stopHandTutoAnimation();
+        this.handTuto.active = true;
+        this.updateHandTutoPosition();
+        this.showHandTutoIdleFrame();
+    }
+
+    private stopHandTutoAnimation() {
+        this.unschedule(this.showHandTutoIdleFrame);
+        this.unschedule(this.showHandTutoClickFrame);
+    }
+
+    /** Display the idle quad, then advance to the click quad. */
+    private showHandTutoIdleFrame() {
+        if (!this.handTuto || !this.handTuto.active || this._handTutoMode !== 'target') return;
+        if (this.handTutoIdle) this.handTutoIdle.active = true;
+        if (this.handTutoClick) this.handTutoClick.active = false;
+        this.scheduleOnce(this.showHandTutoClickFrame, this.handTutoIdleDuration);
+    }
+
+    /** Display the click quad, then loop back to the idle quad. */
+    private showHandTutoClickFrame() {
+        if (!this.handTuto || !this.handTuto.active || this._handTutoMode !== 'target') return;
+        if (this.handTutoIdle) this.handTutoIdle.active = false;
+        if (this.handTutoClick) this.handTutoClick.active = true;
+        this.scheduleOnce(this.showHandTutoIdleFrame, this.handTutoClickDuration);
+    }
+
+    /** Replace the target prompt with a left-to-right rotate prompt. */
+    private beginRotateHandTutorial() {
+        if (!this.handTuto || this._handTutoMode !== 'target') return;
+        this._handTutoMode = 'rotate';
+        this.stopHandTutoAnimation();
+        this.handTuto.active = true;
+        if (this.handTutoIdle) this.handTutoIdle.active = true;
+        if (this.handTutoClick) this.handTutoClick.active = false;
+        this._rotateHandProgress = 0;
+        this._rotateHandPhase = 'idle-left';
+        this._rotateHandPhaseTimer = 0;
+        this.startRotateGuidePulse();
+        if (this.rotateHandStart && this.rotateHandEnd) {
+            this._rotateHandStartPosition.set(this.rotateHandStart.worldPosition);
+            this._rotateHandEndPosition.set(this.rotateHandEnd.worldPosition);
+        } else {
+            const handPosition = this.handTuto.worldPosition;
+            this._rotateHandStartPosition.set(handPosition.x - 4.5, handPosition.y+1.5, handPosition.z);
+            this._rotateHandEndPosition.set(handPosition.x + 0.5, handPosition.y+1.5, handPosition.z);
+        }
+        this.updateRotateHandTutorial(0);
+    }
+
+    /** Animate the gesture: idle left, drag right, release right, then repeat. */
+    private updateRotateHandTutorial(dt: number) {
+        if (!this.handTuto || this._handTutoMode !== 'rotate') return;
+        this._rotateHandPhaseTimer += dt;
+
+        if (this._rotateHandPhase === 'idle-left') {
+            this.handTuto.setWorldPosition(this._rotateHandStartPosition);
+            if (this._rotateHandPhaseTimer >= this.rotateHandIdleDuration) {
+                this._rotateHandPhase = 'dragging-right';
+                this._rotateHandPhaseTimer = 0;
+                if (this.handTutoIdle) this.handTutoIdle.active = false;
+                if (this.handTutoClick) this.handTutoClick.active = true;
+            }
+            return;
+        }
+
+        if (this._rotateHandPhase === 'dragging-right') {
+            this._rotateHandProgress = Math.min(1, this._rotateHandPhaseTimer / Math.max(this.rotateHandTravelDuration, 0.01));
+            Vec3.lerp(this._tempRotateHandPosition, this._rotateHandStartPosition, this._rotateHandEndPosition, this._rotateHandProgress);
+            this.handTuto.setWorldPosition(this._tempRotateHandPosition);
+            if (this._rotateHandProgress >= 1) {
+                this._rotateHandPhase = 'released-right';
+                this._rotateHandPhaseTimer = 0;
+                if (this.handTutoIdle) this.handTutoIdle.active = true;
+                if (this.handTutoClick) this.handTutoClick.active = false;
+            }
+            return;
+        }
+
+        this.handTuto.setWorldPosition(this._rotateHandEndPosition);
+        if (this._rotateHandPhaseTimer >= this.rotateHandReleaseDuration) {
+            this._rotateHandPhase = 'idle-left';
+            this._rotateHandPhaseTimer = 0;
+            this._rotateHandProgress = 0;
+        }
+    }
+
+    /** Destroy the rotate prompt once the player actually rotates the view. */
+    private destroyRotateHandTutorial() {
+        if (!this.handTuto || this._handTutoMode !== 'rotate') return;
+        this._handTutoMode = 'done';
+        if (this.handTuto.isValid) this.handTuto.destroy();
+        this.handTuto = null;
+        this.destroyRotateGuideLabel();
+        this._idleHintTimer = 0;
+    }
+
+    /** Display the rotation instruction with the same repeating pulse as the first guide. */
+    private startRotateGuidePulse() {
+        if (!this.rotateGuideLabel) return;
+        const labelNode = this.rotateGuideLabel.node;
+        labelNode.active = true;
+        labelNode.setScale(
+            this._rotateGuideLabelBaseScale.x * 0.8,
+            this._rotateGuideLabelBaseScale.y * 0.8,
+            this._rotateGuideLabelBaseScale.z,
+        );
+        Tween.stopAllByTarget(labelNode);
+        tween(labelNode)
+            .to(0.18, { scale: this._rotateGuideLabelBaseScale }, { easing: 'backOut' })
+            .call(() => this.playRotateGuidePulseCycle())
+            .start();
+    }
+
+    private playRotateGuidePulseCycle() {
+        if (!this.rotateGuideLabel || !this.rotateGuideLabel.node.isValid) return;
+        const labelNode = this.rotateGuideLabel.node;
+        tween(labelNode)
+            .to(0.34, {
+                scale: new Vec3(
+                    this._rotateGuideLabelBaseScale.x * 1.08,
+                    this._rotateGuideLabelBaseScale.y * 1.08,
+                    this._rotateGuideLabelBaseScale.z,
+                ),
+            })
+            .to(0.34, { scale: this._rotateGuideLabelBaseScale })
+            .call(() => this.playRotateGuidePulseCycle())
+            .start();
+    }
+
+    /** Remove the rotate instruction after the player rotates the view. */
+    private destroyRotateGuideLabel() {
+        if (!this.rotateGuideLabel) return;
+        const labelNode = this.rotateGuideLabel.node;
+        Tween.stopAllByTarget(labelNode);
+        if (labelNode.isValid) labelNode.destroy();
+        this.rotateGuideLabel = null;
+    }
+
+    /** Show the hand over one remaining object after the player is idle. */
+    private showIdleHint() {
+        this.collectWorldObjs();
+        const target = this._worldObjs.find(n => n.isValid && n.active && (n.layer & this._worldLayer) !== 0);
+        if (!target) return;
+        this._idleHintTarget = target;
+        this.startHandTutoAnimation();
+    }
+
+    /** Count idle time only while the player can choose another target. */
+    private updateIdleHint(dt: number) {
+        if (this._state !== GameState.READY || this._active || (this.handTuto && this.handTuto.active)) {
+            this._idleHintTimer = 0;
+            return;
+        }
+        this._idleHintTimer += dt;
+        if (this._idleHintTimer >= this.idleHintDelay) {
+            this._idleHintTimer = 0;
+            this.showIdleHint();
+        }
+    }
+
+    /** Pulse the guide until the player's first interaction. */
+    private startGuidePulse() {
+        if (!this.guideLabel) return;
+        const guideNode = this.guideLabel.node;
+        guideNode.active = true;
+        guideNode.setScale(
+            this._guideLabelBaseScale.x * 0.8,
+            this._guideLabelBaseScale.y * 0.8,
+            this._guideLabelBaseScale.z,
+        );
+        Tween.stopAllByTarget(guideNode);
+        tween(guideNode)
+            .to(0.18, { scale: this._guideLabelBaseScale }, { easing: 'backOut' })
+            .call(() => this.playGuidePulseCycle())
+            .start();
+    }
+
+    /** Run one pulse, then queue the next until the guide is destroyed. */
+    private playGuidePulseCycle() {
+        if (!this.guideLabel || !this.guideLabel.node.isValid) return;
+        const guideNode = this.guideLabel.node;
+        tween(guideNode)
+            .to(0.34, {
+                scale: new Vec3(
+                    this._guideLabelBaseScale.x * 1.08,
+                    this._guideLabelBaseScale.y * 1.08,
+                    this._guideLabelBaseScale.z,
+                ),
+            })
+            .to(0.34, { scale: this._guideLabelBaseScale })
+            .call(() => this.playGuidePulseCycle())
+            .start();
+    }
+
+    /** Remove the guide permanently when the player first interacts. */
+    private destroyGuideOnFirstInteraction() {
+        if (this._hasShownFirstInteractionGuide || !this.guideLabel) return;
+        this._hasShownFirstInteractionGuide = true;
+
+        const guideNode = this.guideLabel.node;
+        Tween.stopAllByTarget(guideNode);
+        if (guideNode.isValid) guideNode.destroy();
+        this.guideLabel = null;
     }
 
     /** Implementation note. */
@@ -736,9 +1034,17 @@ export class GameLogic extends Component {
         const deltaX = x - this._lastX;
         this._lastX = x;
         this._yaw -= deltaX * this.rotateSpeed;
+        if (this._handTutoMode === 'rotate' && Math.abs(deltaX) > 0.5) {
+            this.destroyRotateHandTutorial();
+        }
     }
 
     update(dt: number) {
+        this.updateIdleHint(dt);
+        if (this.handTuto && this.handTuto.active) {
+            if (this._handTutoMode === 'target') this.updateHandTutoPosition();
+            else if (this._handTutoMode === 'rotate') this.updateRotateHandTutorial(dt);
+        }
         const cam = this.mainCamera;
         if (cam) {
             const center = this.orbitCenter;
