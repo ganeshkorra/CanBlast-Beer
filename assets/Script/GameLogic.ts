@@ -29,6 +29,14 @@ export class GameLogic extends Component {
     @property(Node)
     public buttonRetry: Node = null;
 
+    /** Instruction shown while the player can choose a target. */
+    @property(Label)
+    public guideLabel: Label = null;
+
+    /** Animated hand prompt shown while the player is idle and ready to shoot. */
+    @property(Node)
+    public handTuto: Node = null;
+
     /** Implementation note. */
     @property(Node)
     public mainCamera: Node = null;
@@ -167,6 +175,7 @@ export class GameLogic extends Component {
             this.buttonRetry.active = false;
             this.buttonRetry.on(Node.EventType.TOUCH_END, this.onRetryClicked, this);
         }
+        this.setIdleClickGuideVisible(false);
     }
 
     start() {
@@ -643,10 +652,17 @@ export class GameLogic extends Component {
         this._state = s;
         this._restTimer = 0;
         console.log(`[GameLogic] State: ${s}`);
+        this.setIdleClickGuideVisible(s === GameState.READY);
         // Implementation note.
         if (this.buttonRetry) {
             this.buttonRetry.active = s === GameState.GAME_OVER;
         }
+    }
+
+    /** Show the tap instruction and hand only while the game awaits a shot. */
+    private setIdleClickGuideVisible(visible: boolean) {
+        if (this.guideLabel) this.guideLabel.node.active = visible;
+        if (this.handTuto) this.handTuto.active = visible;
     }
 
     /** Implementation note. */
