@@ -1,5 +1,6 @@
-import { _decorator, Component, Node, Vec3, Vec2, input, Input, EventTouch, EventMouse, Camera, Canvas, UITransform, RigidBody, Collider, ICollisionEvent, geometry, PhysicsSystem, Layers, Label, Color, Widget, Prefab, instantiate, director, Button, tween, Tween } from 'cc';
+import { _decorator, Component, Node, Vec3, Vec2, input, Input, EventTouch, EventMouse, Camera, Canvas, UITransform, RigidBody, Collider, ICollisionEvent, geometry, PhysicsSystem, Layers, Label, Prefab, instantiate, director, tween, Tween } from 'cc';
 import { GunController } from './GunController';
+import { Analytics, analyticsEvents } from './Analytics';
 const { ccclass, property } = _decorator;
 
 /** Implementation note. */
@@ -28,6 +29,10 @@ export class GameLogic extends Component {
     public ballRemainingLabel: Label = null;
     @property(Node)
     public buttonRetry: Node = null;
+
+    /** Full-screen CTA shown when the game ends, regardless of outcome. */
+    @property(Node)
+    public endScreenCta: Node = null;
 
     /** Instruction shown while the player can choose a target. */
     @property(Label)
@@ -188,9 +193,9 @@ export class GameLogic extends Component {
     private _worldLayer = 1;                          // Implementation note.
     private _worldObjs: Node[] = [];                  // Implementation note.
     private _restTimer = 0;                           // Implementation note.
-    private _resultLabel: Label = null;           // Implementation note.
     private _gunCtl: GunController = null;            // Implementation note.
     private _currentShell: Node = null;               // Implementation note.
+    private _initialWorldObjCount = 0;
     private _hasShownFirstInteractionGuide = false;
     private _idleHintTimer = 0;
     private _idleHintTarget: Node | null = null;
@@ -233,6 +238,7 @@ export class GameLogic extends Component {
             this.buttonRetry.active = false;
             this.buttonRetry.on(Node.EventType.TOUCH_END, this.onRetryClicked, this);
         }
+        if (this.endScreenCta) this.endScreenCta.active = false;
         if (this.guideLabel) this._guideLabelBaseScale.set(this.guideLabel.node.scale);
         if (this.rotateGuideLabel) {
             this._rotateGuideLabelBaseScale.set(this.rotateGuideLabel.node.scale);
@@ -244,12 +250,8 @@ export class GameLogic extends Component {
     }
 
     start() {
-        // Implementation note.
-        const layerIdx = Layers.nameToLayer('WORLD_OBJ');
-        console.log(`[GameLogic] WORLD_OBJ nameToLayer=${layerIdx}; mask=${this._worldLayer}; bit0=${1 << 0}; bit1=${1 << 1}`);
         const cam = this.mainCamera;
         if (!cam) {
-            console.warn('GameLogic: Main Camera not found');
             return;
         }
 
@@ -283,6 +285,7 @@ export class GameLogic extends Component {
 
         // Implementation note.
         this.collectWorldObjs();
+        this._initialWorldObjCount = this.countWorldObjs();
         //this.snapWorldObjs();
 
         this.setGameState(GameState.INITIALIZING);
@@ -395,7 +398,6 @@ export class GameLogic extends Component {
             }
             if (!hit) return; // Implementation note.
 
-            console.log(`[raycast] Hit ${hit.collider.node.name}; node.layer=${hit.collider.node.layer}; point=${hit.hitPoint.toString()}`);
             this._markerPlaced = true;
             this._markerWorldPos.set(hit.hitPoint);
             this.marker.setWorldPosition(this._markerWorldPos);
@@ -406,6 +408,7 @@ export class GameLogic extends Component {
 
     /** Implementation note. */
     private startFire() {
+        Analytics.trackEvent(analyticsEvents.CHALLENGE_STARTED);
         this.setGameState(GameState.FIRING);
 
         // Implementation note.
@@ -422,7 +425,6 @@ export class GameLogic extends Component {
             // Implementation note.
             const localAngle = targetWorldAngle - camYaw + 180;
             this.gun.setRotationFromEuler(0, localAngle, 0);
-            console.log(`target=${targetWorldAngle.toFixed(1)} camYaw=${camYaw.toFixed(1)} local=${localAngle.toFixed(1)}`);
         }
 
         if (this._gunCtl) {
@@ -482,7 +484,6 @@ export class GameLogic extends Component {
 
         // Implementation note.
         this.ballRemaining--;
-        console.log(`[GameLogic] Balls remaining: ${this.ballRemaining}`);
 
         // Implementation note.
         this.collectWorldObjs();
@@ -493,15 +494,12 @@ export class GameLogic extends Component {
     private enterReady() {
         if (this.ballRemaining <= 0) {
             // Implementation note.
-            this.showLose();
             this.setGameState(GameState.GAME_OVER);
             return;
         }
         // Implementation note.
         this._currentShell = this.instantiateShell();
         if (!this._currentShell) {
-            console.warn('GameLogic: Failed to instantiate shellPrefab');
-            this.showLose();
             this.setGameState(GameState.GAME_OVER);
             return;
         }
@@ -574,12 +572,14 @@ export class GameLogic extends Component {
         this.collectWorldObjs();
         // Implementation note.
         this.destroyCurrentShell();
-        if (this.countWorldObjs() === 0) {
-            this.showWin();
+        const remainingWorldObjs = this.countWorldObjs();
+        this.trackChallengeProgress(remainingWorldObjs);
+        if (remainingWorldObjs === 0) {
+            Analytics.trackEvent(analyticsEvents.CHALLENGE_SOLVED);
             this.setGameState(GameState.GAME_OVER);
         } else if (this.ballRemaining <= 0) {
             // Implementation note.
-            this.showLose();
+            Analytics.trackEvent(analyticsEvents.CHALLENGE_FAILED);
             this.setGameState(GameState.GAME_OVER);
         } else {
             this.enterReady();
@@ -593,6 +593,15 @@ export class GameLogic extends Component {
             if (n.isValid && n.active && (n.layer & this._worldLayer) !== 0) count++;
         }
         return count;
+    }
+
+    /** Report the predefined 25%, 50%, and 75% challenge milestones. */
+    private trackChallengeProgress(remainingWorldObjs: number) {
+        if (this._initialWorldObjCount <= 0) return;
+        const clearedFraction = 1 - remainingWorldObjs / this._initialWorldObjCount;
+        if (clearedFraction >= 0.25) Analytics.trackEvent(analyticsEvents.CHALLENGE_PASS_25);
+        if (clearedFraction >= 0.5) Analytics.trackEvent(analyticsEvents.CHALLENGE_PASS_50);
+        if (clearedFraction >= 0.75) Analytics.trackEvent(analyticsEvents.CHALLENGE_PASS_75);
     }
 
     /** Implementation note. */
@@ -701,7 +710,6 @@ export class GameLogic extends Component {
         const dz = pos.z - cz;
         const horizDist = Math.sqrt(dx * dx + dz * dz);
         if (horizDist > this.shellMaxDistance || pos.y < this.deleteBelowY) {
-            console.log(`[GameLogic] Shell removed out of bounds (horizontal distance ${horizDist.toFixed(1)}, Y ${pos.y.toFixed(1)})`);
             this.destroyCurrentShell();
         }
     }
@@ -725,13 +733,12 @@ export class GameLogic extends Component {
         if (s === GameState.READY) {
             this._idleHintTimer = 0;
             this._idleHintTarget = null;
+            Analytics.trackEvent(analyticsEvents.DISPLAYED);
         }
-        console.log(`[GameLogic] State: ${s}`);
         this.setIdleClickGuideVisible(s === GameState.READY);
-        // Implementation note.
-        if (this.buttonRetry) {
-            this.buttonRetry.active = s === GameState.GAME_OVER;
-        }
+        if (this.buttonRetry) this.buttonRetry.active = false;
+        if (this.endScreenCta) this.endScreenCta.active = s === GameState.GAME_OVER;
+        if (s === GameState.GAME_OVER) Analytics.trackEvent(analyticsEvents.ENDCARD_SHOWN);
     }
 
     /** Show the tap instruction and hand only while the game awaits a shot. */
@@ -961,45 +968,6 @@ export class GameLogic extends Component {
         Tween.stopAllByTarget(guideNode);
         if (guideNode.isValid) guideNode.destroy();
         this.guideLabel = null;
-    }
-
-    /** Implementation note. */
-    private showWin() {
-        this.showResult('YOU WIN!', new Color(255, 215, 0, 255)); // Gold
-    }
-
-    /** Implementation note. */
-    private showLose() {
-        this.showResult('GAME OVER', new Color(255, 80, 80, 255)); // Red
-    }
-
-    /** Implementation note. */
-    private showResult(text: string, color: Color) {
-        const canvas = this.node.scene.getChildByName('CanvasUI');
-        if (!canvas) return;
-        if (!this._resultLabel) {
-            const n = new Node('ResultText');
-            n.layer = Layers.Enum.UI_2D;
-            n.parent = canvas;
-
-            const ui = n.addComponent(UITransform);
-            ui.setContentSize(800, 240);
-
-            const label = n.addComponent(Label);
-            label.fontSize = 160;
-            label.lineHeight = 160;
-            this._resultLabel = label;
-
-            // Implementation note.
-            const widget = n.addComponent(Widget);
-            widget.isAlignHorizontalCenter = true;
-            widget.isAlignVerticalCenter = true;
-            widget.alignMode = Widget.AlignMode.ON_WINDOW_RESIZE;
-            n.setPosition(0, 0, 0);
-        }
-        this._resultLabel.string = text;
-        this._resultLabel.color = color;
-        this._resultLabel.node.active = true;
     }
 
     /** Implementation note. */
