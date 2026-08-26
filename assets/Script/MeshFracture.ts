@@ -1,6 +1,6 @@
 import {
     _decorator, Component, Node, Vec3, Quat, Mat4, Mesh, MeshRenderer, MeshCollider,
-    RigidBody, Collider, ICollisionEvent, utils, gfx,
+    AudioClip, AudioSource, RigidBody, Collider, ICollisionEvent, utils, gfx,
 } from 'cc';
 import { WorldObjController } from './WorldObjController';
 
@@ -20,6 +20,13 @@ export class MeshFracture extends Component {
     /** Implementation note. */
     private static readonly GROUND_LAYER = 2;
 
+    /** Played once when the beer item lands and breaks apart. */
+    @property(AudioClip)
+    public fallSound: AudioClip | null = null;
+
+    @property
+    public fallSoundVolume = 0.75;
+
     /** Implementation note. */
     @property({ tooltip: 'Target number of fragments' })
     public pieceCount: number = 6;
@@ -36,9 +43,11 @@ export class MeshFracture extends Component {
     private _rigid: RigidBody | null = null;
     private _renderer: MeshRenderer | null = null;
     private _collider: Collider | null = null;
+    private _audio: AudioSource | null = null;
     private readonly _tmpVel = new Vec3();
 
     start() {
+        this._audio = this.getComponent(AudioSource) || this.addComponent(AudioSource);
         this._rigid = this.getComponent(RigidBody);
         // Implementation note.
         this._renderer = this.getComponent(MeshRenderer) || this.getComponentInChildren(MeshRenderer);
@@ -59,6 +68,8 @@ export class MeshFracture extends Component {
         if (!other) return;
         // Implementation note.
         if ((other.node.layer & MeshFracture.GROUND_LAYER) === 0) return;
+
+        if (this.fallSound && this._audio) this._audio.playOneShot(this.fallSound, this.fallSoundVolume);
 
         // Implementation note.
         const impactVel = this._tmpVel;

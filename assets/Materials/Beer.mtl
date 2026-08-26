@@ -8,11 +8,13 @@
     "__uuid__": "c8f66d17-351a-48da-a12c-0212d28575c4",
     "__expectedType__": "cc.EffectAsset"
   },
-  "_techIdx": 1,
+  "_techIdx": 0,
   "_defines": [
     {
+      "USE_INSTANCING": true,
       "USE_ALBEDO_MAP": true
     },
+    {},
     {},
     {},
     {},
@@ -63,15 +65,27 @@
           {}
         ]
       }
+    },
+    {
+      "rasterizerState": {},
+      "depthStencilState": {},
+      "blendState": {
+        "targets": [
+          {}
+        ]
+      }
     }
   ],
   "_props": [
     {
+      "roughness": 0.673,
+      "specularIntensity": 0.304,
       "mainTexture": {
         "__uuid__": "3a5b2fc3-54bc-487c-9c13-a9dbb9d77fbc@6c48a",
         "__expectedType__": "cc.Texture2D"
       }
     },
+    {},
     {},
     {},
     {},

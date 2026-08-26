@@ -1,4 +1,4 @@
-import { _decorator, Component, Vec3, tween, MeshRenderer, Material, Color, Collider, ICollisionEvent } from 'cc';
+import { _decorator, AudioClip, AudioSource, Component, Vec3, tween, MeshRenderer, Material, Color, Collider, ICollisionEvent } from 'cc';
 const { ccclass, property } = _decorator;
 
 /**
@@ -15,6 +15,13 @@ export class WorldObjController extends Component {
     /** Implementation note. */
     private static readonly GROUND_LAYER = 2;
 
+    /** Played once when this item lands on the ground. */
+    @property(AudioClip)
+    public fallSound: AudioClip | null = null;
+
+    @property
+    public fallSoundVolume = 0.75;
+
     /** Implementation note. */
     private delayBeforeFade: number = 1;
 
@@ -22,11 +29,13 @@ export class WorldObjController extends Component {
     private fadeDuration: number = 1;
 
     private _collider: Collider | null = null;
+    private _audio: AudioSource | null = null;
     private _groundHit = false;
     private _fading = false;
     private _delayTimer = 0;
 
     start() {
+        this._audio = this.getComponent(AudioSource) || this.addComponent(AudioSource);
         this._collider = this.getComponent(Collider);
         if (this._collider) {
             // Implementation note.
@@ -45,6 +54,7 @@ export class WorldObjController extends Component {
         // Implementation note.
         if ((other.node.layer & WorldObjController.GROUND_LAYER) === 0) return;
         this._groundHit = true;
+        if (this.fallSound && this._audio) this._audio.playOneShot(this.fallSound, this.fallSoundVolume);
     }
 
     update(dt: number) {

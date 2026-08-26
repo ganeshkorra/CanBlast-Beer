@@ -268,6 +268,11 @@
     "pieceCount": 3,
     "transferFactor": 0.6,
     "scatterForce": 1.5,
+    "fallSound": {
+      "__uuid__": "62c93284-03d3-49f2-82bb-f30ea52e21c3",
+      "__expectedType__": "cc.AudioClip"
+    },
+    "fallSoundVolume": 0.75,
     "_id": ""
   },
   {

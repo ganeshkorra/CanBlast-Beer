@@ -1,4 +1,4 @@
-import { _decorator, Component, Node, Vec3, Vec2, input, Input, EventTouch, EventMouse, Camera, Canvas, UITransform, RigidBody, Collider, ICollisionEvent, geometry, PhysicsSystem, Layers, Label, Prefab, instantiate, director, tween, Tween } from 'cc';
+import { _decorator, AudioClip, AudioSource, Component, Node, Vec3, Vec2, input, Input, EventTouch, EventMouse, Camera, Canvas, UITransform, RigidBody, Collider, ICollisionEvent, geometry, PhysicsSystem, Layers, Label, Prefab, instantiate, director, tween, Tween } from 'cc';
 import { GunController } from './GunController';
 import { Analytics, analyticsEvents } from './Analytics';
 const { ccclass, property } = _decorator;
@@ -29,6 +29,14 @@ export class GameLogic extends Component {
     public ballRemainingLabel: Label = null;
     @property(Node)
     public buttonRetry: Node = null;
+
+    /** Played when a ball hits a beer can. */
+    @property(AudioClip)
+    public beerHitSound: AudioClip | null = null;
+
+    /** Played when a ball hits a box. */
+    @property(AudioClip)
+    public boxHitSound: AudioClip | null = null;
 
     /** Full-screen CTA shown when the game ends, regardless of outcome. */
     @property(Node)
@@ -195,6 +203,7 @@ export class GameLogic extends Component {
     private _restTimer = 0;                           // Implementation note.
     private _gunCtl: GunController = null;            // Implementation note.
     private _currentShell: Node = null;               // Implementation note.
+    private _impactAudio: AudioSource | null = null;
     private _initialWorldObjCount = 0;
     private _challengeFailed = false;
     private _hasShownFirstInteractionGuide = false;
@@ -212,6 +221,7 @@ export class GameLogic extends Component {
 
     onLoad() {
         Analytics.trackEvent(analyticsEvents.LOADING);
+        this._impactAudio = this.getComponent(AudioSource) || this.addComponent(AudioSource);
         if (!this.mainCamera) {
             this.mainCamera = this.node.scene.getChildByName('Main Camera');
         }
@@ -553,8 +563,16 @@ export class GameLogic extends Component {
         }
         const hitNode = e.otherCollider ? e.otherCollider.node : null;
         if (hitNode && (hitNode.layer & this._worldLayer) !== 0) {
+            this.playItemHitSound(hitNode);
             this.beginRotateHandTutorial();
         }
+    }
+
+    /** Choose the impact sound by item type so one ball hit produces one clear cue. */
+    private playItemHitSound(item: Node) {
+        const isBeer = item.name.toLowerCase().startsWith('beer');
+        const clip = isBeer ? this.beerHitSound : this.boxHitSound;
+        if (clip && this._impactAudio) this._impactAudio.playOneShot(clip, 1);
     }
 
     /** Implementation note. */
