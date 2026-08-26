@@ -3,8 +3,8 @@ import { GunController } from './GunController';
 const { ccclass } = _decorator;
 
 /**
- * 运行时动态添加到 Animation 所在节点的 shim 组件。
- * 帧事件 func:"shot" 会在该节点找 shot() 方法 → shim.shot() → 转发到 GunController。
+ * Implementation note.
+ * Implementation note.
  */
 @ccclass('GunShotShim')
 export class GunShotShim extends Component {
@@ -14,7 +14,7 @@ export class GunShotShim extends Component {
         this._controller = controller;
     }
 
-    /** 帧事件 func:"shot" 调用此方法 */
+    /** Implementation note. */
     public shot() {
         if (this._controller) {
             this._controller.shot();
