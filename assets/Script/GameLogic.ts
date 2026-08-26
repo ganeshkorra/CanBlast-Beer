@@ -196,6 +196,7 @@ export class GameLogic extends Component {
     private _gunCtl: GunController = null;            // Implementation note.
     private _currentShell: Node = null;               // Implementation note.
     private _initialWorldObjCount = 0;
+    private _challengeFailed = false;
     private _hasShownFirstInteractionGuide = false;
     private _idleHintTimer = 0;
     private _idleHintTarget: Node | null = null;
@@ -210,6 +211,7 @@ export class GameLogic extends Component {
     private readonly _rotateHandEndPosition = new Vec3();
 
     onLoad() {
+        Analytics.trackEvent(analyticsEvents.LOADING);
         if (!this.mainCamera) {
             this.mainCamera = this.node.scene.getChildByName('Main Camera');
         }
@@ -494,6 +496,8 @@ export class GameLogic extends Component {
     private enterReady() {
         if (this.ballRemaining <= 0) {
             // Implementation note.
+            this._challengeFailed = true;
+            Analytics.trackEvent(analyticsEvents.CHALLENGE_FAILED);
             this.setGameState(GameState.GAME_OVER);
             return;
         }
@@ -579,6 +583,7 @@ export class GameLogic extends Component {
             this.setGameState(GameState.GAME_OVER);
         } else if (this.ballRemaining <= 0) {
             // Implementation note.
+            this._challengeFailed = true;
             Analytics.trackEvent(analyticsEvents.CHALLENGE_FAILED);
             this.setGameState(GameState.GAME_OVER);
         } else {
@@ -733,6 +738,7 @@ export class GameLogic extends Component {
         if (s === GameState.READY) {
             this._idleHintTimer = 0;
             this._idleHintTarget = null;
+            Analytics.trackEvent(analyticsEvents.LOADED);
             Analytics.trackEvent(analyticsEvents.DISPLAYED);
         }
         this.setIdleClickGuideVisible(s === GameState.READY);
@@ -972,6 +978,7 @@ export class GameLogic extends Component {
 
     /** Implementation note. */
     private onRetryClicked() {
+        if (this._challengeFailed) Analytics.trackEvent(analyticsEvents.CHALLENGE_RETRY);
         const sceneName = director.getScene().name;
         director.loadScene("demo");
     }
