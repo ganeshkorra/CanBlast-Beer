@@ -1,0 +1,116 @@
+{
+  "ver": "2.3.14",
+  "importer": "fbx",
+  "imported": true,
+  "uuid": "b99cb52f-b28d-409b-9161-b23c9d140e8f",
+  "files": [],
+  "subMetas": {
+    "33532": {
+      "importer": "gltf-mesh",
+      "uuid": "b99cb52f-b28d-409b-9161-b23c9d140e8f@33532",
+      "displayName": "",
+      "id": "33532",
+      "name": "Cylinder.007.mesh",
+      "userData": {
+        "gltfIndex": 1,
+        "triangleCount": 480
+      },
+      "ver": "1.1.1",
+      "imported": true,
+      "files": [
+        ".bin",
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "bbd92": {
+      "importer": "gltf-mesh",
+      "uuid": "b99cb52f-b28d-409b-9161-b23c9d140e8f@bbd92",
+      "displayName": "",
+      "id": "bbd92",
+      "name": "Cylinder.004.mesh",
+      "userData": {
+        "gltfIndex": 0,
+        "triangleCount": 684
+      },
+      "ver": "1.1.1",
+      "imported": true,
+      "files": [
+        ".bin",
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "52ffd": {
+      "importer": "gltf-mesh",
+      "uuid": "b99cb52f-b28d-409b-9161-b23c9d140e8f@52ffd",
+      "displayName": "",
+      "id": "52ffd",
+      "name": "Torus.001.mesh",
+      "userData": {
+        "gltfIndex": 2,
+        "triangleCount": 212
+      },
+      "ver": "1.1.1",
+      "imported": true,
+      "files": [
+        ".bin",
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "6a17e": {
+      "importer": "gltf-scene",
+      "uuid": "b99cb52f-b28d-409b-9161-b23c9d140e8f@6a17e",
+      "displayName": "",
+      "id": "6a17e",
+      "name": "MangSung2.prefab",
+      "userData": {
+        "gltfIndex": 0
+      },
+      "ver": "1.0.14",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    }
+  },
+  "userData": {
+    "imageMetas": [],
+    "fbx": {
+      "smartMaterialEnabled": true
+    },
+    "lods": {
+      "enable": false,
+      "hasBuiltinLOD": false,
+      "options": [
+        {
+          "screenRatio": 0.25,
+          "faceCount": 1
+        },
+        {
+          "screenRatio": 0.125,
+          "faceCount": 0.25
+        },
+        {
+          "screenRatio": 0.01,
+          "faceCount": 0.1
+        }
+      ]
+    },
+    "assetFinder": {
+      "meshes": [
+        "b99cb52f-b28d-409b-9161-b23c9d140e8f@bbd92",
+        "b99cb52f-b28d-409b-9161-b23c9d140e8f@33532",
+        "b99cb52f-b28d-409b-9161-b23c9d140e8f@52ffd"
+      ],
+      "skeletons": [],
+      "textures": [],
+      "materials": [],
+      "scenes": [
+        "b99cb52f-b28d-409b-9161-b23c9d140e8f@6a17e"
+      ]
+    }
+  }
+}

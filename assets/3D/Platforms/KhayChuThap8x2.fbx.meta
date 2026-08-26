@@ -1,0 +1,78 @@
+{
+  "ver": "2.3.14",
+  "importer": "fbx",
+  "imported": true,
+  "uuid": "0d8a645a-cead-47fd-b797-ed67eb570f61",
+  "files": [],
+  "subMetas": {
+    "32a51": {
+      "importer": "gltf-mesh",
+      "uuid": "0d8a645a-cead-47fd-b797-ed67eb570f61@32a51",
+      "displayName": "",
+      "id": "32a51",
+      "name": "Cube.022.mesh",
+      "userData": {
+        "gltfIndex": 0,
+        "triangleCount": 196
+      },
+      "ver": "1.1.1",
+      "imported": true,
+      "files": [
+        ".bin",
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "f45e6": {
+      "importer": "gltf-scene",
+      "uuid": "0d8a645a-cead-47fd-b797-ed67eb570f61@f45e6",
+      "displayName": "",
+      "id": "f45e6",
+      "name": "KhayChuThap8x2.prefab",
+      "userData": {
+        "gltfIndex": 0
+      },
+      "ver": "1.0.14",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    }
+  },
+  "userData": {
+    "imageMetas": [],
+    "fbx": {
+      "smartMaterialEnabled": true
+    },
+    "lods": {
+      "enable": false,
+      "hasBuiltinLOD": false,
+      "options": [
+        {
+          "screenRatio": 0.25,
+          "faceCount": 1
+        },
+        {
+          "screenRatio": 0.125,
+          "faceCount": 0.25
+        },
+        {
+          "screenRatio": 0.01,
+          "faceCount": 0.1
+        }
+      ]
+    },
+    "assetFinder": {
+      "meshes": [
+        "0d8a645a-cead-47fd-b797-ed67eb570f61@32a51"
+      ],
+      "skeletons": [],
+      "textures": [],
+      "materials": [],
+      "scenes": [
+        "0d8a645a-cead-47fd-b797-ed67eb570f61@f45e6"
+      ]
+    }
+  }
+}

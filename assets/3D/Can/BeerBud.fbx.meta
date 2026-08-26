@@ -1,0 +1,150 @@
+{
+  "ver": "2.3.14",
+  "importer": "fbx",
+  "imported": true,
+  "uuid": "b21d6325-0531-4ac4-b739-7754e5f106ac",
+  "files": [],
+  "subMetas": {
+    "344db": {
+      "importer": "gltf-mesh",
+      "uuid": "b21d6325-0531-4ac4-b739-7754e5f106ac@344db",
+      "displayName": "",
+      "id": "344db",
+      "name": "Plane.003.mesh",
+      "userData": {
+        "gltfIndex": 0,
+        "triangleCount": 1488
+      },
+      "ver": "1.1.1",
+      "imported": true,
+      "files": [
+        ".bin",
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "48b02": {
+      "importer": "gltf-embeded-image",
+      "uuid": "b21d6325-0531-4ac4-b739-7754e5f106ac@48b02",
+      "displayName": "",
+      "id": "48b02",
+      "name": "base_color_texture.image",
+      "userData": {
+        "gltfIndex": 0,
+        "fixAlphaTransparencyArtifacts": true,
+        "hasAlpha": true,
+        "type": "texture"
+      },
+      "ver": "1.0.3",
+      "imported": true,
+      "files": [
+        ".json",
+        ".png"
+      ],
+      "subMetas": {}
+    },
+    "7d6ab": {
+      "importer": "texture",
+      "uuid": "b21d6325-0531-4ac4-b739-7754e5f106ac@7d6ab",
+      "displayName": "",
+      "id": "7d6ab",
+      "name": "base_color_texture.texture",
+      "userData": {
+        "wrapModeS": "repeat",
+        "wrapModeT": "repeat",
+        "minfilter": "linear",
+        "magfilter": "linear",
+        "mipfilter": "none",
+        "anisotropy": 0,
+        "isUuid": true,
+        "imageUuidOrDatabaseUri": "b21d6325-0531-4ac4-b739-7754e5f106ac@48b02"
+      },
+      "ver": "1.0.22",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "23c7e": {
+      "importer": "gltf-material",
+      "uuid": "b21d6325-0531-4ac4-b739-7754e5f106ac@23c7e",
+      "displayName": "",
+      "id": "23c7e",
+      "name": "ground.material",
+      "userData": {
+        "gltfIndex": 0
+      },
+      "ver": "1.0.14",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    },
+    "db948": {
+      "importer": "gltf-scene",
+      "uuid": "b21d6325-0531-4ac4-b739-7754e5f106ac@db948",
+      "displayName": "",
+      "id": "db948",
+      "name": "BeerBud.prefab",
+      "userData": {
+        "gltfIndex": 0
+      },
+      "ver": "1.0.14",
+      "imported": true,
+      "files": [
+        ".json"
+      ],
+      "subMetas": {}
+    }
+  },
+  "userData": {
+    "imageMetas": [
+      {
+        "name": "base_color_texture",
+        "uri": "b21d6325-0531-4ac4-b739-7754e5f106ac@48b02"
+      }
+    ],
+    "fbx": {
+      "smartMaterialEnabled": true
+    },
+    "lods": {
+      "enable": false,
+      "hasBuiltinLOD": false,
+      "options": [
+        {
+          "screenRatio": 0.25,
+          "faceCount": 1
+        },
+        {
+          "screenRatio": 0.125,
+          "faceCount": 0.25
+        },
+        {
+          "screenRatio": 0.01,
+          "faceCount": 0.1
+        }
+      ]
+    },
+    "assetFinder": {
+      "meshes": [
+        "b21d6325-0531-4ac4-b739-7754e5f106ac@344db"
+      ],
+      "skeletons": [],
+      "textures": [
+        "b21d6325-0531-4ac4-b739-7754e5f106ac@7d6ab"
+      ],
+      "materials": [
+        "b21d6325-0531-4ac4-b739-7754e5f106ac@23c7e"
+      ],
+      "scenes": [
+        "b21d6325-0531-4ac4-b739-7754e5f106ac@db948"
+      ]
+    },
+    "normals": 2,
+    "tangents": 2,
+    "allowMeshDataAccess": true,
+    "disableMeshSplit": false
+  }
+}
